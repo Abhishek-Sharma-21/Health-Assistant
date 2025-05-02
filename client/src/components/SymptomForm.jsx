@@ -8,7 +8,7 @@ const SymptomForm = ({ onDiagnosis }) => {
   const [medicalHistory, setMedicalHistory] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const apiUrl = import.meta.env.VITE_API_URL;
+  const apiUrl = import.meta.env.VITE_BACKENCD_URL;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
