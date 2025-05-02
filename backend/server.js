@@ -11,7 +11,7 @@ const PORT = 5000;
 // Your Gemini API Key
 const genAI = new GoogleGenerativeAI(process.env.GEMNI_API_KEY);
 
-app.use(cors());
+app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
 app.use(bodyParser.json());
 
 app.post("/diagnose", async (req, res) => {
