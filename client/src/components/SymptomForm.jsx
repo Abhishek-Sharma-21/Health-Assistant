@@ -8,6 +8,8 @@ const SymptomForm = ({ onDiagnosis }) => {
   const [medicalHistory, setMedicalHistory] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const apiUrl = import.meta.env.VITE_API_URL;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -19,7 +21,7 @@ const SymptomForm = ({ onDiagnosis }) => {
 
     const loadingToast = toast.loading("Generating insights...");
     try {
-      const res = await fetch("http://localhost:5000/diagnose", {
+      const res = await fetch(`${apiUrl}/diagnose`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symptoms, medicalHistory }),
