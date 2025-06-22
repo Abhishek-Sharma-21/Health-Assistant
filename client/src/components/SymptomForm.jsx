@@ -30,16 +30,22 @@ const SymptomForm = ({ onDiagnosis }) => {
       const data = await res.json();
       console.log(data);
 
-      if (data.result) {
+      if (res.ok && data.result) {
         // You might parse and display this text in <DiagnosisDisplay />
         onDiagnosis(data.result);
         // console.log("Diagnosis:", data.result);
         toast.success("Health insights generated!");
+      } else if (res.status === 400 && data.error) {
+        // Handle validation errors (including non-medical queries)
+        toast.error(data.error);
+      } else if (res.status === 500) {
+        toast.error("Service temporarily unavailable. Please try again later.");
       } else {
-        toast.error("No response from AI.");
+        toast.error("Unable to generate health insights. Please check your input and try again.");
       }
     } catch (err) {
-      toast.error("Error connecting to server." + err);
+      console.error("Network error:", err);
+      toast.error("Connection error. Please check your internet connection and try again.");
     } finally {
       toast.dismiss(loadingToast);
       setLoading(false);
@@ -75,6 +81,14 @@ const SymptomForm = ({ onDiagnosis }) => {
         <p className="text-sm text-gray-500 mt-1">
           Providing relevant medical history can help improve the accuracy of
           the suggestions.
+        </p>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <p className="text-sm text-blue-800">
+          <strong>Note:</strong> This service is designed for medical symptoms and health concerns only. 
+          Please provide specific symptoms like "headache", "fever", "chest pain", etc. 
+          Non-medical queries will not be processed.
         </p>
       </div>
 
