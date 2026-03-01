@@ -2,7 +2,7 @@
 
 A web application that provides health insights and suggestions based on user-entered symptoms. This project utilizes a symptom form to gather information and communicates with a backend powered by an AI model (like Gemini) to generate potential diagnoses, recommendations, and over-the-counter medication suggestions.
 
-**Visit the live website:** [https://health-assistant-frontend.vercel.app](https://health-assistant-frontend.vercel.app)
+**Visit the live website:** [https://health-assistant-five.vercel.app](https://health-assistant-five.vercel.app)
 
 ## Features
 
