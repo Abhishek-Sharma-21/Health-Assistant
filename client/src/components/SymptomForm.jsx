@@ -39,7 +39,7 @@ const SymptomForm = ({ onDiagnosis }) => {
         // Handle validation errors (including non-medical queries)
         toast.error(data.error);
       } else if (res.status === 500) {
-        toast.error("Service temporarily unavailable. Please try again later.");
+        toast.error(data.error || "Service temporarily unavailable. Please try again later.");
       } else {
         toast.error("Unable to generate health insights. Please check your input and try again.");
       }

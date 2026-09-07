@@ -2,9 +2,16 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { OpenAI } from "openai";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import dotenv from "dotenv";
 import { analyzeQuery } from "./data/validationData.js";
-dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -84,8 +91,9 @@ Provide your analysis in the following JSON format ONLY (no other text):
 
 IMPORTANT: Respond ONLY with the JSON object above. Do not include any other text, explanations, or confirmations.`;
 
+    const model = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash-lite";
     const completion = await openai.chat.completions.create({
-      model: "google/gemini-2.0-flash-001",
+      model: model,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -106,8 +114,8 @@ IMPORTANT: Respond ONLY with the JSON object above. Do not include any other tex
       res.status(500).json({ error: "Failed to parse cleaned AI response." });
     }
   } catch (err) {
-    console.error("Error:", err.message);
-    res.status(500).json({ error: "Something went wrong." });
+    console.error("API or Server Error:", err);
+    res.status(500).json({ error: err.message || "Something went wrong." });
   }
 });
 
