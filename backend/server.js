@@ -1,12 +1,15 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
+import cookieParser from "cookie-parser";
 import { OpenAI } from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 
 import dotenv from "dotenv";
 import { analyzeQuery } from "./data/validationData.js";
+import authRoutes from "./routes/authRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,15 +24,18 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: process.env.OPENROUTER_API_KEY,
   defaultHeaders: {
-    "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:3000", // Optional, for including your app on openrouter.ai rankings.
-    "X-Title": "Health Assistant", // Optional. Shows in rankings on openrouter.ai.
+    "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:3000",
+    "X-Title": "Health Assistant",
   },
 });
 
-// Validation logic now imported from ./data/validationData.js
-
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173", credentials: true }));
 app.use(bodyParser.json());
+app.use(cookieParser());
+
+// Mount API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.post("/diagnose", async (req, res) => {
   const { symptoms, medicalHistory } = req.body;

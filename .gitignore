@@ -1,3 +1,26 @@
+# Environment & Secret Files (HIGH PRIORITY)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+*.env.development
+*.env.production
+*.env.test
+
+# SSL / Security Certificates & Keys (HIGH PRIORITY)
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.cer
+*.der
+id_rsa
+id_rsa.pub
+*.keystore
+*.jks
+
 # Logs
 logs
 *.log
@@ -14,11 +37,14 @@ client/node_modules/
 dist/
 dist-ssr/
 build/
+.next/
+out/
+coverage/
 
-# Environment files
-.env
-.env.local
-.env.*.local
+# Database files
+*.sqlite
+*.sqlite3
+*.db
 
 # Editor directories and files
 .vscode/
@@ -34,8 +60,6 @@ build/
 .DS_Store
 Thumbs.db
 
-# Local npm cache
+# Local npm cache & temp
 .npm
-
-# Misc
 *.local
