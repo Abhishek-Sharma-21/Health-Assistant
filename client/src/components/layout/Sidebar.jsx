@@ -12,7 +12,9 @@ import {
   BrainCircuit,
   LogOut,
   X,
-  ShieldCheck
+  ShieldCheck,
+  ClipboardList,
+  Pill
 } from "lucide-react";
 import { useHealthStore } from "../../store/useHealthStore";
 
@@ -21,6 +23,8 @@ const NAV_ITEMS = [
   { id: "chat", label: "AI Chat", icon: MessageSquareText },
   { id: "symptom-checker", label: "Symptom Checker", icon: Stethoscope },
   { id: "health-info", label: "Health Information", icon: BookOpen },
+  { id: "health-records", label: "Health Records", icon: ClipboardList },
+  { id: "medications", label: "Medications", icon: Pill },
   { id: "doctors", label: "Find Doctors", icon: UserCheck },
   { id: "lifestyle", label: "Healthy Lifestyle", icon: HeartPulse },
   { id: "reminders", label: "Reminders", icon: BellRing },
@@ -30,7 +34,7 @@ export function Sidebar() {
   const { activePage, setActivePage, isMobileSidebarOpen, closeMobileSidebar, authUser } = useHealthStore();
 
   const bottomItems = [
-    ...(authUser?.role === "super_admin" ? [{ id: "admin", label: "Admin Control", icon: ShieldCheck }] : []),
+    ...(authUser?.role === "admin" ? [{ id: "admin", label: "Admin Control", icon: ShieldCheck }] : []),
     { id: "profile", label: "Profile", icon: User },
     { id: "settings", label: "Settings", icon: Settings },
     { id: "help", label: "Help & Support", icon: HelpCircle },

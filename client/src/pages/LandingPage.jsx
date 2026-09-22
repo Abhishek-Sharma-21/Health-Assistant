@@ -16,7 +16,7 @@ import {
 import { useHealthStore } from "../store/useHealthStore";
 
 export function LandingPage() {
-  const { setActivePage } = useHealthStore();
+  const { setActivePage, openAuthModal, authUser } = useHealthStore();
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
@@ -41,17 +41,26 @@ export function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setActivePage("profile")}
-              className="text-sm font-semibold px-4 py-2 text-foreground hover:text-cyan-600 transition-colors"
-            >
-              Login
-            </button>
+            {authUser ? (
+              <button 
+                onClick={() => setActivePage("home")}
+                className="text-sm font-semibold px-4 py-2 text-foreground hover:text-cyan-600 transition-colors"
+              >
+                Dashboard
+              </button>
+            ) : (
+              <button 
+                onClick={() => openAuthModal("login")}
+                className="text-sm font-semibold px-4 py-2 text-foreground hover:text-cyan-600 transition-colors"
+              >
+                Login
+              </button>
+            )}
             <button
-              onClick={() => setActivePage("home")}
+              onClick={() => authUser ? setActivePage("home") : openAuthModal("register")}
               className="text-sm font-semibold px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white shadow-lg shadow-cyan-600/25 transition-all active:scale-95 cursor-pointer"
             >
-              Get Started
+              {authUser ? "Dashboard" : "Get Started"}
             </button>
           </div>
         </div>

@@ -107,10 +107,10 @@ export function AdminDashboardPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
-              Super Admin Control Center
+              Admin Control Center
             </h1>
             <span className="px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 text-xs font-bold font-mono">
-              SUPER_ADMIN
+              ADMIN
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -152,11 +152,11 @@ export function AdminDashboardPage() {
 
         <div className="glass-card rounded-2xl p-5 border border-border/70 space-y-2">
           <div className="flex items-center justify-between text-muted-foreground">
-            <span className="text-xs font-semibold uppercase tracking-wider">Super Admins</span>
+            <span className="text-xs font-semibold uppercase tracking-wider">Admins</span>
             <ShieldAlert className="h-4 w-4 text-rose-600" />
           </div>
           <div className="text-2xl font-bold font-heading text-rose-600 dark:text-rose-400">
-            {metrics?.superAdmins ?? users.filter(u => u.role === "super_admin").length}
+            {metrics?.admins ?? users.filter(u => u.role === "admin").length}
           </div>
         </div>
 
@@ -212,7 +212,7 @@ export function AdminDashboardPage() {
                     </td>
                     <td className="p-3">
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase font-mono ${
-                        u.role === "super_admin"
+                        u.role === "admin"
                           ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30"
                           : "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20"
                       }`}>

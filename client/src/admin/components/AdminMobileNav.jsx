@@ -1,12 +1,13 @@
 import React from "react";
-import { LayoutDashboard, Users, MessageSquareText, BookOpen, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, MessageSquareText, BarChart3, PenTool, Key } from "lucide-react";
 import { useHealthStore } from "../../store/useHealthStore";
 
 const ADMIN_MOBILE_ITEMS = [
   { id: "admin-overview", label: "Dashboard", icon: LayoutDashboard },
   { id: "admin-users", label: "Users", icon: Users },
+  { id: "admin-blogs", label: "Blogs", icon: PenTool },
   { id: "admin-conversations", label: "Chats", icon: MessageSquareText },
-  { id: "admin-content", label: "Content", icon: BookOpen },
+  { id: "admin-ai-credentials", label: "AI", icon: Key },
   { id: "admin-reports", label: "Reports", icon: BarChart3 },
 ];
 

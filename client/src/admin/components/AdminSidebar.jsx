@@ -3,7 +3,6 @@ import {
   LayoutDashboard, 
   Users, 
   MessageSquareText, 
-  BookOpen, 
   Megaphone, 
   BarChart3, 
   Settings, 
@@ -12,15 +11,18 @@ import {
   BrainCircuit, 
   LogOut, 
   Leaf,
-  X
+  X,
+  PenTool,
+  Key
 } from "lucide-react";
 import { useHealthStore } from "../../store/useHealthStore";
 
 const ADMIN_NAV = [
   { id: "admin-overview", label: "Dashboard", icon: LayoutDashboard },
   { id: "admin-users", label: "Users", icon: Users },
+  { id: "admin-blogs", label: "Blog Management", icon: PenTool },
   { id: "admin-conversations", label: "AI Conversations", icon: MessageSquareText },
-  { id: "admin-content", label: "Health Content", icon: BookOpen },
+  { id: "admin-ai-credentials", label: "AI Credentials", icon: Key },
   { id: "admin-announcements", label: "Announcements", icon: Megaphone },
   { id: "admin-reports", label: "Reports", icon: BarChart3 },
   { id: "admin-settings", label: "Settings", icon: Settings },
@@ -50,7 +52,7 @@ export function AdminSidebar() {
               HealthWise
             </span>
             <span className="text-[9px] font-bold tracking-widest text-cyan-600 dark:text-cyan-400 uppercase block -mt-1 font-mono">
-              AI Health Super Admin
+              Admin Control Center
             </span>
           </div>
         </div>

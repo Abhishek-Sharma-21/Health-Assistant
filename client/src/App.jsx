@@ -8,6 +8,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { MobileNav } from "./components/layout/MobileNav";
 import { AuthModal } from "./components/auth/AuthModal";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 
 // Page Views
 import { LandingPage } from "./pages/LandingPage";
@@ -15,8 +16,10 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { AIChatPage } from "./pages/AIChatPage";
 import { SymptomCheckerPage } from "./pages/SymptomCheckerPage";
 import { HealthInfoPage } from "./pages/HealthInfoPage";
-import { ArticleDetailPage } from "./pages/ArticleDetailPage";
+import { BlogDetailPage } from "./pages/BlogDetailPage";
 import { FindDoctorsPage } from "./pages/FindDoctorsPage";
+import { HealthRecordsPage } from "./pages/HealthRecordsPage";
+import { MedicationsPage } from "./pages/MedicationsPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { SettingsPage } from "./pages/SettingsPage";
 
@@ -31,6 +34,9 @@ import { AdminReportsPage } from "./admin/pages/AdminReportsPage";
 import { AdminSettingsPage } from "./admin/pages/AdminSettingsPage";
 import { AdminProfilePage } from "./admin/pages/AdminProfilePage";
 import { AdminHelpPage } from "./admin/pages/AdminHelpPage";
+import { AdminBlogsPage } from "./admin/pages/AdminBlogsPage";
+import { AdminBlogEditorPage } from "./admin/pages/AdminBlogEditorPage";
+import { AdminAiCredentialsPage } from "./admin/pages/AdminAiCredentialsPage";
 
 function App() {
   const { activePage, darkMode, authUser, setAuthUser, setActivePage } = useHealthStore();
@@ -87,10 +93,12 @@ function App() {
         {(activePage === "admin" || activePage === "admin-overview") && <AdminOverviewPage />}
         {activePage === "admin-users" && <AdminUsersPage />}
         {activePage === "admin-conversations" && <AdminConversationsPage />}
-        {activePage === "admin-content" && <AdminContentPage />}
+        {activePage === "admin-ai-credentials" && <AdminAiCredentialsPage />}
         {activePage === "admin-announcements" && <AdminAnnouncementsPage />}
         {activePage === "admin-reports" && <AdminReportsPage />}
         {activePage === "admin-settings" && <AdminSettingsPage />}
+        {activePage === "admin-blogs" && <AdminBlogsPage />}
+        {activePage === "admin-blog-editor" && <AdminBlogEditorPage />}
         {activePage === "admin-profile" && <AdminProfilePage />}
         {activePage === "admin-help" && <AdminHelpPage />}
       </AdminLayout>
@@ -118,22 +126,26 @@ function App() {
         <Header />
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-          {activePage === "home" && <DashboardPage />}
-          {activePage === "chat" && <AIChatPage />}
-          {activePage === "symptom-checker" && <SymptomCheckerPage />}
-          {activePage === "health-info" && <HealthInfoPage />}
-          {activePage === "article-detail" && <ArticleDetailPage />}
-          {activePage === "doctors" && <FindDoctorsPage />}
-          {activePage === "profile" && <ProfilePage />}
-          {activePage === "settings" && <SettingsPage />}
-          
-          {/* Fallback for Lifestyle / Reminders / Help links */}
-          {(activePage === "lifestyle" || activePage === "reminders" || activePage === "help") && (
-            <div className="space-y-4 max-w-3xl mx-auto py-8 text-center">
-              <h1 className="text-2xl font-bold font-heading capitalize text-foreground">{activePage} Guidance</h1>
-              <p className="text-sm text-muted-foreground">Interactive tools and recommendations for {activePage} are active.</p>
-            </div>
-          )}
+          <ProtectedRoute>
+            {activePage === "home" && <DashboardPage />}
+            {activePage === "chat" && <AIChatPage />}
+            {activePage === "symptom-checker" && <SymptomCheckerPage />}
+            {activePage === "health-info" && <HealthInfoPage />}
+            {activePage === "blog-detail" && <BlogDetailPage />}
+            {activePage === "health-records" && <HealthRecordsPage />}
+            {activePage === "medications" && <MedicationsPage />}
+            {activePage === "doctors" && <FindDoctorsPage />}
+            {activePage === "profile" && <ProfilePage />}
+            {activePage === "settings" && <SettingsPage />}
+            
+            {/* Fallback for Lifestyle / Reminders / Help links */}
+            {(activePage === "lifestyle" || activePage === "reminders" || activePage === "help") && (
+              <div className="space-y-4 max-w-3xl mx-auto py-8 text-center">
+                <h1 className="text-2xl font-bold font-heading capitalize text-foreground">{activePage} Guidance</h1>
+                <p className="text-sm text-muted-foreground">Interactive tools and recommendations for {activePage} are active.</p>
+              </div>
+            )}
+          </ProtectedRoute>
         </main>
       </div>
 

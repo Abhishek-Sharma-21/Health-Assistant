@@ -9,7 +9,7 @@ export function AdminLayout({ children }) {
   const { authUser, setActivePage, openAuthModal } = useHealthStore();
 
   // Strict Role Protection Check
-  if (!authUser || authUser.role !== "super_admin") {
+  if (!authUser || authUser.role !== "admin") {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 text-center font-sans">
         <div className="max-w-md w-full glass-card bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl space-y-5">
@@ -22,10 +22,10 @@ export function AdminLayout({ children }) {
               403 Forbidden Access
             </span>
             <h1 className="text-2xl font-heading font-black text-slate-900 dark:text-white">
-              Super Admin Authorization Required
+              Admin Authorization Required
             </h1>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              You must be logged in with verified Super Admin credentials to access the HealthWise Control Center.
+              You must be logged in with verified Admin credentials to access the HealthWise Control Center.
             </p>
           </div>
 

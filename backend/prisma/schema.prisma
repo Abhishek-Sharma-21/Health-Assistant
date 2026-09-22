@@ -9,7 +9,7 @@ generator client {
 
 enum Role {
   user
-  super_admin
+  admin
 }
 
 model User {
@@ -22,5 +22,422 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  auditLogs    AuditLog[]
+  blogs        Blog[]
+  healthProfile HealthProfile?
+  healthRecords  HealthRecord[]
+  medications    Medication[]
+  conversations  Conversation[]
+  aiPreference   AIPreference?
+  aiUsageLogs    AIUsageLog[]
+
   @@map("users")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  adminUserId  String
+  action       String
+  targetUserId String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  adminUser  User   @relation(fields: [adminUserId], references: [id])
+
+  @@index([adminUserId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+enum BlogStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  blogs Blog[]
+
+  @@map("categories")
+}
+
+model Blog {
+  id          String     @id @default(uuid())
+  title       String
+  slug        String     @unique
+  content     String
+  excerpt     String?
+  status      BlogStatus @default(DRAFT)
+  isFeatured  Boolean    @default(false)
+  authorId    String
+  categoryId  String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  author   User      @relation(fields: [authorId], references: [id])
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([status])
+  @@index([isFeatured])
+  @@index([categoryId])
+  @@index([authorId])
+  @@map("blogs")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+  UNKNOWN
+}
+
+enum SmokingStatus {
+  NEVER
+  FORMER
+  CURRENT
+  UNKNOWN
+}
+
+enum AlcoholStatus {
+  NEVER
+  FORMER
+  CURRENT
+  UNKNOWN
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+  UNKNOWN
+}
+
+model HealthProfile {
+  id                String        @id @default(uuid())
+  userId            String        @unique
+  dateOfBirth       DateTime?
+  gender            Gender?
+  height            Float?
+  weight            Float?
+  bloodGroup        BloodGroup?
+  allergies         String?
+  medicalConditions String?
+  currentMedications String?
+  smokingStatus     SmokingStatus @default(UNKNOWN)
+  alcoholStatus     AlcoholStatus @default(UNKNOWN)
+  activityLevel     ActivityLevel @default(UNKNOWN)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("health_profiles")
+}
+
+enum RecordType {
+  DOCTOR_VISIT
+  DIAGNOSIS
+  LAB_TEST
+  VACCINATION
+  SURGERY
+  OTHER
+}
+
+model HealthRecord {
+  id            String     @id @default(uuid())
+  userId        String
+  recordType    RecordType
+  title         String
+  recordDate    DateTime
+  doctorName    String?
+  hospitalName  String?
+  diagnosis     String?
+  description   String?
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([recordType])
+  @@index([recordDate])
+  @@map("health_records")
+}
+
+enum MedicationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum DosageUnit {
+  MG
+  G
+  ML
+  TABLET
+  CAPSULE
+  DROP
+  PUFF
+  OTHER
+}
+
+enum Frequency {
+  ONCE_DAILY
+  TWICE_DAILY
+  THREE_TIMES_DAILY
+  FOUR_TIMES_DAILY
+  WEEKLY
+  AS_NEEDED
+  CUSTOM
+}
+
+enum DoseStatus {
+  PENDING
+  TAKEN
+  SKIPPED
+  MISSED
+}
+
+model Medication {
+  id            String            @id @default(uuid())
+  userId        String
+  name          String
+  dosage        Float?
+  dosageUnit    DosageUnit        @default(TABLET)
+  frequency     Frequency         @default(ONCE_DAILY)
+  instructions  String?
+  startDate     DateTime
+  endDate       DateTime?
+  status        MedicationStatus  @default(ACTIVE)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user      User                @relation(fields: [userId], references: [id])
+  schedules MedicationSchedule[]
+  doses     MedicationDose[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("medications")
+}
+
+model MedicationSchedule {
+  id            String    @id @default(uuid())
+  medicationId  String
+  time          String
+  daysOfWeek    String    @default("daily")
+  enabled       Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@index([medicationId])
+  @@map("medication_schedules")
+}
+
+model MedicationDose {
+  id            String      @id @default(uuid())
+  medicationId  String
+  scheduledAt   DateTime
+  status        DoseStatus  @default(PENDING)
+  takenAt       DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@index([medicationId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@map("medication_doses")
+}
+
+// ─── AI Conversation Memory ────────────────────────────────────────────────
+
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User                 @relation(fields: [userId], references: [id])
+  messages ConversationMessage[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("conversations")
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+model ConversationMessage {
+  id             String      @id @default(uuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  contextUsed    String?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("conversation_messages")
+}
+
+enum ResponseStyle {
+  CONCISE
+  BALANCED
+  DETAILED
+}
+
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+}
+
+model AIPreference {
+  id               String       @id @default(uuid())
+  userId           String       @unique
+  preferredLanguage String      @default("en")
+  responseStyle    ResponseStyle @default(BALANCED)
+  preferredUnit    UnitSystem    @default(METRIC)
+  memoryEnabled    Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("ai_preferences")
+}
+
+enum AIUsageStatus {
+  SUCCESS
+  ERROR
+  SAFETY_BLOCKED
+}
+
+enum AITask {
+  CHAT
+  SYMPTOM_ANALYSIS
+  HEALTH_SUMMARY
+  TREND_SUMMARY
+  RECORD_SUMMARY
+  MEDICATION_INFORMATION
+}
+
+enum AICredentialStatus {
+  ACTIVE
+  DISABLED
+  TEMPORARILY_UNAVAILABLE
+}
+
+enum RoutingStrategy {
+  PRIORITY
+  ROUND_ROBIN
+  FAILOVER
+}
+
+model AICredential {
+  id             String             @id @default(uuid())
+  name           String
+  provider       String
+  model          String
+  apiKey         String
+  baseUrl        String?
+  enabled        Boolean            @default(true)
+  priority       Int                @default(10)
+  status         AICredentialStatus @default(ACTIVE)
+  routingStrategy RoutingStrategy   @default(PRIORITY)
+  lastUsedAt     DateTime?
+  lastErrorAt    DateTime?
+  failureCount   Int                @default(0)
+  successCount   Int                @default(0)
+  roundRobinIndex Int               @default(0)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  tasks   AICredentialTask[]
+  logs    AIUsageLog[]
+
+  @@index([enabled])
+  @@index([status])
+  @@index([priority])
+  @@map("ai_credentials")
+}
+
+model AICredentialTask {
+  id           String   @id @default(uuid())
+  credentialId String
+  task         AITask
+
+  credential AICredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@unique([credentialId, task])
+  @@index([credentialId])
+  @@index([task])
+  @@map("ai_credential_tasks")
+}
+
+model AIUsageLog {
+  id             String         @id @default(uuid())
+  userId         String
+  conversationId String?
+  credentialId   String?
+  task           AITask?
+  provider       String
+  model          String?
+  status         AIUsageStatus  @default(SUCCESS)
+  inputTokens    Int?
+  outputTokens   Int?
+  totalTokens    Int?
+  durationMs     Int?
+  cost           Float?
+  currency       String?
+  createdAt      DateTime       @default(now())
+
+  user       User          @relation(fields: [userId], references: [id])
+  credential AICredential? @relation(fields: [credentialId], references: [id])
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([credentialId])
+  @@index([task])
+  @@index([provider])
+  @@index([createdAt])
+  @@map("ai_usage_logs")
 }

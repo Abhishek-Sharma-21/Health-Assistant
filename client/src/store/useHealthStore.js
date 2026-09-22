@@ -2,8 +2,19 @@ import { create } from "zustand";
 
 export const useHealthStore = create((set) => ({
   // Active Navigation Page
-  activePage: "home",
-  setActivePage: (page) => set({ activePage: page, isMobileSidebarOpen: false }),
+  activePage: "landing",
+  setActivePage: (page) => set((state) => {
+    // Pages that require authentication
+    const protectedPages = ["home", "chat", "symptom-checker", "health-info", "doctors", "profile", "settings", "lifestyle", "reminders", "help", "blog-detail", "health-records", "medications"];
+    const isAdminPage = page.startsWith("admin");
+
+    // If user is not authenticated and trying to access a protected page, open auth modal instead
+    if (!state.authUser && (protectedPages.includes(page) || isAdminPage)) {
+      return { isAuthModalOpen: true, authModalMode: "login", isMobileSidebarOpen: false };
+    }
+
+    return { activePage: page, isMobileSidebarOpen: false };
+  }),
 
   // Auth User & Modal State
   authUser: null,
@@ -15,7 +26,7 @@ export const useHealthStore = create((set) => ({
 
   setAuthUser: (user) =>
     set((state) => {
-      const activePage = user?.role === "super_admin" ? "admin-overview" : state.activePage.startsWith("admin") ? "home" : state.activePage;
+      const activePage = user?.role === "admin" ? "admin-overview" : state.activePage.startsWith("admin") ? "home" : state.activePage;
       return {
         authUser: user,
         isAuthModalOpen: false,
@@ -68,6 +79,14 @@ export const useHealthStore = create((set) => ({
   selectedArticle: null,
   setSelectedArticle: (article) => set({ selectedArticle: article, activePage: "article-detail" }),
 
+  // Admin Blog Editor State
+  adminEditingBlog: null,
+  setAdminEditingBlog: (blog) => set({ adminEditingBlog: blog }),
+
+  // Public Blog Detail State
+  selectedBlogSlug: null,
+  setSelectedBlogSlug: (slug) => set({ selectedBlogSlug: slug }),
+
   // User Profile
   userProfile: {
     fullName: "Abhishek Sharma",
@@ -82,6 +101,36 @@ export const useHealthStore = create((set) => ({
       userProfile: { ...state.userProfile, ...updatedFields },
     })),
 
+  // Health Context Toggle for AI Chat
+  useHealthContext: true,
+  toggleHealthContext: () => set((state) => ({ useHealthContext: !state.useHealthContext })),
+
+  // AI Conversation State
+  conversations: [],
+  activeConversationId: null,
+  conversationLoading: false,
+
+  setConversations: (conversations) => set({ conversations }),
+  setActiveConversationId: (id) => set({ activeConversationId: id }),
+  setConversationLoading: (loading) => set({ conversationLoading: loading }),
+
+  addConversation: (conversation) =>
+    set((state) => ({
+      conversations: [conversation, ...state.conversations],
+      activeConversationId: conversation.id,
+    })),
+
+  removeConversation: (id) =>
+    set((state) => ({
+      conversations: state.conversations.filter((c) => c.id !== id),
+      activeConversationId: state.activeConversationId === id ? null : state.activeConversationId,
+    })),
+
+  renameConversation: (id, title) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) => (c.id === id ? { ...c, title } : c)),
+    })),
+
   // AI Chat Conversation Stream State
   chatMessages: [
     {
@@ -91,10 +140,22 @@ export const useHealthStore = create((set) => ({
       timestamp: "10:00 AM",
     },
   ],
+  setChatMessages: (messages) => set({ chatMessages: messages }),
   addChatMessage: (msg) =>
     set((state) => ({
       chatMessages: [...state.chatMessages, { ...msg, id: Date.now().toString() }],
     })),
+  clearChatMessages: () =>
+    set({
+      chatMessages: [
+        {
+          id: "welcome-" + Date.now(),
+          sender: "ai",
+          text: "Hi! I'm your AI Health Assistant. How can I help you today?",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ],
+    }),
 
   // Symptom Checker 3-Step Wizard State
   symptomWizard: {

@@ -1,51 +1,79 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Users,
-  UserPlus,
   Search,
   Shield,
   CheckCircle2,
   XCircle,
-  Trash2,
   Mail,
   UserCheck,
   UserX,
   X,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Clock,
+  Calendar,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all"); // 'all' | 'super_admin' | 'doctor' | 'user'
-  
-  // Add User Modal State
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newUser, setNewUser] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "user",
-  });
-  const [submitting, setSubmitting] = useState(false);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Detail modal
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Confirmation modal
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const apiUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPagination((prev) => ({ ...prev, page: 1 }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch users when filters change
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [debouncedSearch, roleFilter, statusFilter, pagination.page]);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${apiUrl}/api/admin/users`, {
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        pageSize: pagination.pageSize.toString(),
+      });
+
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      if (roleFilter !== "all") params.set("role", roleFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+
+      const res = await fetch(`${apiUrl}/api/admin/users?${params}`, {
         credentials: "include",
       });
+
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users || []);
+        setPagination(data.pagination || { page: 1, pageSize: 20, total: 0, totalPages: 1 });
       } else {
         toast.error("Failed to load users list.");
       }
@@ -57,7 +85,37 @@ export function AdminUsersPage() {
     }
   };
 
-  const handleToggleStatus = async (user) => {
+  const fetchUserDetail = async (userId) => {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/users/${userId}`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedUser(data.user);
+      } else {
+        toast.error("Failed to load user details.");
+      }
+    } catch (err) {
+      toast.error("Network error loading user details.");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleToggleStatus = (user) => {
+    setConfirmAction({
+      type: user.isActive ? "block" : "unblock",
+      user,
+    });
+  };
+
+  const executeStatusToggle = async () => {
+    if (!confirmAction) return;
+    const { user } = confirmAction;
+    setConfirmAction(null);
+
     try {
       const res = await fetch(`${apiUrl}/api/admin/users/${user.id}/status`, {
         method: "PATCH",
@@ -70,9 +128,7 @@ export function AdminUsersPage() {
 
       if (res.ok) {
         toast.success(data.message || "User status updated.");
-        setUsers((prev) =>
-          prev.map((u) => (u.id === user.id ? { ...u, isActive: !u.isActive } : u))
-        );
+        fetchUsers();
       } else {
         toast.error(data.error || "Failed to update user status.");
       }
@@ -81,64 +137,9 @@ export function AdminUsersPage() {
     }
   };
 
-  const handleDeleteUser = async (user) => {
-    if (!window.confirm(`Are you sure you want to delete user "${user.name}" (${user.email})? This action cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`${apiUrl}/api/admin/users/${user.id}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        toast.success("User account deleted successfully.");
-        setUsers((prev) => prev.filter((u) => u.id !== user.id));
-      } else {
-        toast.error(data.error || "Failed to delete user account.");
-      }
-    } catch (err) {
-      toast.error("Error connecting to server.");
-    }
+  const goToPage = (page) => {
+    setPagination((prev) => ({ ...prev, page }));
   };
-
-  const handleAddUserSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const res = await fetch(`${apiUrl}/api/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(newUser),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        toast.success(`User "${newUser.name}" registered successfully.`);
-        setIsAddModalOpen(false);
-        setNewUser({ name: "", email: "", password: "", role: "user" });
-        fetchUsers();
-      } else {
-        toast.error(data.error || "Failed to add new user.");
-      }
-    } catch (err) {
-      toast.error("Network error while creating user.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "all" || u.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -147,78 +148,69 @@ export function AdminUsersPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 text-[10px] font-mono font-bold uppercase tracking-wider">
-              Directory & Access Control
+              Access Control
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-slate-900 dark:text-white">
             Users Management
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
-            Manage system roles, account active statuses, and administrative access permissions.
+            Manage system roles, account statuses, and user access permissions.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchUsers}
-            disabled={loading}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-2 cursor-pointer"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-cyan-600 dark:text-cyan-400" : ""}`} />
-            Sync DB Users
-          </button>
-
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow-lg shadow-cyan-600/25 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
-          >
-            <UserPlus className="h-4 w-4" /> Provision New User
-          </button>
-        </div>
+        <button
+          onClick={fetchUsers}
+          disabled={loading}
+          className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-2 cursor-pointer w-fit"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin text-cyan-600 dark:text-cyan-400" : ""}`} />
+          Sync Users
+        </button>
       </div>
 
       {/* Filter Tabs & Search Bar */}
-      <div className="glass-card bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+      <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
         {/* Role Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
           {[
-            { id: "all", label: "All Users", count: users.length },
-            {
-              id: "super_admin",
-              label: "Super Admins",
-              count: users.filter((u) => u.role === "super_admin").length,
-            },
-            {
-              id: "doctor",
-              label: "Verified Doctors",
-              count: users.filter((u) => u.role === "doctor").length,
-            },
-            {
-              id: "user",
-              label: "Regular Users",
-              count: users.filter((u) => u.role === "user").length,
-            },
+            { id: "all", label: "All Users" },
+            { id: "admin", label: "Admins" },
+            { id: "user", label: "Users" },
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setRoleFilter(tab.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+              onClick={() => { setRoleFilter(tab.id); setPagination((prev) => ({ ...prev, page: 1 })); }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
                 roleFilter === tab.id
                   ? "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 shadow-sm"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50"
               }`}
             >
               {tab.label}
-              <span className="px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-mono text-slate-700 dark:text-slate-300">
-                {tab.count}
-              </span>
+            </button>
+          ))}
+
+          <span className="text-slate-300 dark:text-slate-600 mx-1">|</span>
+
+          {["all", "active", "blocked"].map((s) => (
+            <button
+              key={s}
+              onClick={() => { setStatusFilter(s); setPagination((prev) => ({ ...prev, page: 1 })); }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap capitalize ${
+                statusFilter === s
+                  ? "bg-slate-900/10 dark:bg-white/10 text-slate-900 dark:text-white border border-slate-900/20 dark:border-white/20 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+              }`}
+            >
+              {s === "all" ? "All Status" : s}
             </button>
           ))}
         </div>
 
         {/* Search Bar */}
         <div className="relative w-full md:w-72">
-          <Search className="h-4 w-4 absolute left-3.5 top-3 text-slate-400" />
+          <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Search by name or email..."
@@ -230,15 +222,15 @@ export function AdminUsersPage() {
       </div>
 
       {/* Users Data Table */}
-      <div className="glass-card bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
             <thead className="bg-slate-100/80 dark:bg-slate-950/80 text-slate-600 dark:text-slate-400 uppercase text-[10px] font-mono tracking-wider border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th className="py-4 px-6">User Profile</th>
-                <th className="py-4 px-6">Assigned Role</th>
-                <th className="py-4 px-6">Account Status</th>
-                <th className="py-4 px-6">Member Since</th>
+                <th className="py-4 px-6">Role</th>
+                <th className="py-4 px-6">Status</th>
+                <th className="py-4 px-6">Created</th>
                 <th className="py-4 px-6 text-right">Actions</th>
               </tr>
             </thead>
@@ -247,17 +239,17 @@ export function AdminUsersPage() {
                 <tr>
                   <td colSpan="5" className="py-12 text-center text-slate-500 font-mono">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto text-cyan-600 dark:text-cyan-400 mb-2" />
-                    Querying Neon PostgreSQL Database...
+                    Loading users...
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="py-12 text-center text-slate-500 font-mono">
-                    No users matching search filters found.
+                  <td colSpan="5" className="py-12 text-center text-slate-500 font-mono italic">
+                    No users found matching your filters.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
+                users.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                     {/* User Profile */}
                     <td className="py-4 px-6">
@@ -278,10 +270,8 @@ export function AdminUsersPage() {
                     <td className="py-4 px-6">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
-                          u.role === "super_admin"
+                          u.role === "admin"
                             ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                            : u.role === "doctor"
-                            ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20"
                             : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
                         }`}
                       >
@@ -300,18 +290,14 @@ export function AdminUsersPage() {
                         }`}
                       >
                         {u.isActive ? (
-                          <>
-                            <CheckCircle2 className="h-3 w-3" /> Active
-                          </>
+                          <><CheckCircle2 className="h-3 w-3" /> Active</>
                         ) : (
-                          <>
-                            <XCircle className="h-3 w-3" /> Suspended
-                          </>
+                          <><XCircle className="h-3 w-3" /> Blocked</>
                         )}
                       </span>
                     </td>
 
-                    {/* Member Since */}
+                    {/* Created */}
                     <td className="py-4 px-6 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
                       {new Date(u.createdAt).toLocaleDateString("en-US", {
                         year: "numeric",
@@ -324,8 +310,16 @@ export function AdminUsersPage() {
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
+                          onClick={() => fetchUserDetail(u.id)}
+                          title="View Details"
+                          className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-cyan-500/10 text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 border border-slate-200 dark:border-slate-700 hover:border-cyan-500/30 transition-all cursor-pointer"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+
+                        <button
                           onClick={() => handleToggleStatus(u)}
-                          title={u.isActive ? "Suspend Account" : "Activate Account"}
+                          title={u.isActive ? "Block User" : "Unblock User"}
                           className={`p-2 rounded-xl border transition-all cursor-pointer ${
                             u.isActive
                               ? "bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/10 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border-slate-200 dark:border-slate-700 hover:border-rose-500/30"
@@ -333,14 +327,6 @@ export function AdminUsersPage() {
                           }`}
                         >
                           {u.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteUser(u)}
-                          title="Delete User"
-                          className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/10 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 border border-slate-200 dark:border-slate-700 hover:border-rose-500/30 transition-all cursor-pointer"
-                        >
-                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -350,92 +336,162 @@ export function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Showing {((pagination.page - 1) * pagination.pageSize) + 1}-
+              {Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-xs font-mono text-slate-600 dark:text-slate-400 px-2">
+                {pagination.page} / {pagination.totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+                className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Add New User Modal */}
-      {isAddModalOpen && (
+      {/* User Detail Modal */}
+      {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-              <div>
-                <h3 className="text-lg font-heading font-bold text-slate-900 dark:text-white">Provision System User</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Add a new account directly to Neon PostgreSQL.</p>
-              </div>
+              <h3 className="text-lg font-heading font-bold text-slate-900 dark:text-white">User Details</h3>
               <button
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={() => setSelectedUser(null)}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddUserSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Dr. Alex Morgan"
-                  value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-cyan-500"
-                />
+            {detailLoading ? (
+              <div className="py-8 text-center">
+                <RefreshCw className="h-6 w-6 animate-spin mx-auto text-cyan-600 dark:text-cyan-400 mb-2" />
+                <p className="text-xs text-slate-500">Loading user details...</p>
               </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 text-white font-bold font-heading flex items-center justify-center text-xl shadow-lg">
+                    {selectedUser.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 dark:text-white text-lg">{selectedUser.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">{selectedUser.email}</p>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="alex@healthwise.com"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-cyan-500"
-                />
-              </div>
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">Role</span>
+                    <p className={`text-xs font-bold capitalize ${
+                      selectedUser.role === "admin" ? "text-amber-600 dark:text-amber-400" : "text-slate-900 dark:text-white"
+                    }`}>
+                      {selectedUser.role}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-slate-400 tracking-wider">Status</span>
+                    <p className={`text-xs font-bold ${
+                      selectedUser.isActive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                    }`}>
+                      {selectedUser.isActive ? "Active" : "Blocked"}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> Created
+                    </span>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">
+                      {new Date(selectedUser.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 space-y-1">
+                    <span className="text-[10px] font-mono uppercase text-slate-400 tracking-wider flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Updated
+                    </span>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">
+                      {new Date(selectedUser.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Initial Password</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••••••"
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Access Role Level</label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="user">Regular User (Patient)</option>
-                  <option value="doctor">Verified Doctor</option>
-                  <option value="super_admin">Super Admin</option>
-                </select>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end gap-3">
                 <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+                  onClick={() => { setSelectedUser(null); handleToggleStatus(selectedUser); }}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    selectedUser.isActive
+                      ? "bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30"
+                      : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                  }`}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-xs font-bold text-white shadow-lg shadow-cyan-600/25 cursor-pointer disabled:opacity-50"
-                >
-                  {submitting ? "Creating..." : "Save User Account"}
+                  {selectedUser.isActive ? "Block User" : "Unblock User"}
                 </button>
               </div>
-            </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl space-y-5">
+            <div className="text-center space-y-2">
+              <div className={`w-12 h-12 mx-auto rounded-2xl flex items-center justify-center border ${
+                confirmAction.type === "block"
+                  ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+              }`}>
+                {confirmAction.type === "block" ? <UserX className="h-6 w-6" /> : <UserCheck className="h-6 w-6" />}
+              </div>
+              <h3 className="text-lg font-heading font-bold text-slate-900 dark:text-white">
+                {confirmAction.type === "block" ? "Block User?" : "Unblock User?"}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {confirmAction.user.name} ({confirmAction.user.email})
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                {confirmAction.type === "block"
+                  ? "This will prevent the user from accessing the application."
+                  : "This will restore the user's access to the application."}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeStatusToggle}
+                className={`flex-1 px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg transition-all cursor-pointer ${
+                  confirmAction.type === "block"
+                    ? "bg-rose-600 hover:bg-rose-500 shadow-rose-600/25"
+                    : "bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/25"
+                }`}
+              >
+                {confirmAction.type === "block" ? "Block User" : "Unblock User"}
+              </button>
+            </div>
           </div>
         </div>
       )}

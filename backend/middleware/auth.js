@@ -48,14 +48,14 @@ export const protect = async (req, res, next) => {
   }
 };
 
-// Authorization Middleware: Ensures authenticated user is a super_admin
-export const requireSuperAdmin = (req, res, next) => {
+// Authorization Middleware: Ensures authenticated user has admin role
+export const requireAdmin = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authorized." });
   }
 
-  if (req.user.role !== "super_admin") {
-    return res.status(403).json({ error: "Forbidden: Super Admin privileges required." });
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Forbidden: Admin privileges required." });
   }
 
   next();

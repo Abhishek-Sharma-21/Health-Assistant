@@ -1,12 +1,12 @@
 import React from "react";
-import { Home, MessageSquareText, Stethoscope, BookOpen, User } from "lucide-react";
+import { Home, MessageSquareText, Stethoscope, BookOpen, User, ClipboardList } from "lucide-react";
 import { useHealthStore } from "../../store/useHealthStore";
 
 const MOBILE_ITEMS = [
   { id: "home", label: "Home", icon: Home },
   { id: "chat", label: "AI Chat", icon: MessageSquareText },
   { id: "symptom-checker", label: "Checker", icon: Stethoscope },
-  { id: "health-info", label: "Library", icon: BookOpen },
+  { id: "health-records", label: "Records", icon: ClipboardList },
   { id: "profile", label: "Profile", icon: User },
 ];
 

@@ -23,7 +23,7 @@ async function seedSuperAdmin() {
       where: {
         OR: [
           { email: email },
-          { role: "super_admin" }
+          { role: "admin" }
         ]
       }
     });
@@ -42,7 +42,7 @@ async function seedSuperAdmin() {
         name,
         email,
         passwordHash,
-        role: "super_admin",
+        role: "admin",
         isActive: true,
       },
       select: {

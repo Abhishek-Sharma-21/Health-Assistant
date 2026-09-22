@@ -88,7 +88,7 @@ router.post("/register", async (req, res) => {
 });
 
 // @route   POST /api/auth/login
-// @desc    Authenticate user or super_admin via single form
+// @desc    Authenticate user or admin via single form
 // @access  Public
 router.post("/login", async (req, res) => {
   try {

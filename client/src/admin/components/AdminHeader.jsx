@@ -75,7 +75,7 @@ export function AdminHeader() {
                 {authUser?.name || "Admin"}
               </span>
               <span className="block text-[10px] text-cyan-600 dark:text-cyan-400 font-semibold leading-tight font-mono">
-                Super Admin
+                Admin
               </span>
             </div>
           </div>

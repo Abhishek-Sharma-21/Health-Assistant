@@ -86,7 +86,7 @@ export function Header() {
           {authUser ? (
             <div className="flex items-center gap-2 pl-2">
               <div 
-                onClick={() => setActivePage(authUser.role === "super_admin" ? "admin" : "profile")}
+                onClick={() => setActivePage(authUser.role === "admin" ? "admin" : "profile")}
                 className="flex items-center gap-2 cursor-pointer group"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-500 text-white font-bold text-xs flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
