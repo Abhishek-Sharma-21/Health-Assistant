@@ -53,10 +53,6 @@ export async function getCredentialsForTask(task) {
 
 export async function recordCredentialUsage(credentialId, success) {
   try {
-    const data = success
-      ? { lastUsedAt: new Date(), $inc: { successCount: 1 }, failureCount: 0 }
-      : { lastErrorAt: new Date(), $inc: { failureCount: 1 } };
-
     if (success) {
       await prisma.aICredential.update({
         where: { id: credentialId },

@@ -45,7 +45,8 @@ export function SymptomCheckerPage() {
     setSymptomExtraDetails,
     setSymptomDiagnosisResult,
     setSymptomLoading,
-    resetSymptomWizard
+    resetSymptomWizard,
+    useHealthContext
   } = useHealthStore();
 
   const { step, selectedSymptoms, medicalHistory, extraDetails, diagnosisResult, loading } = symptomWizard;
@@ -70,7 +71,12 @@ export function SymptomCheckerPage() {
       const res = await fetch(`${apiUrl}/diagnose`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symptoms: combinedSymptoms, medicalHistory: medicalHistory }),
+        credentials: "include",
+        body: JSON.stringify({
+          symptoms: combinedSymptoms,
+          medicalHistory: medicalHistory,
+          useHealthContext: useHealthContext,
+        }),
       });
 
       const data = await res.json();
@@ -82,7 +88,7 @@ export function SymptomCheckerPage() {
         toast.error(data.error || "Failed to analyze symptoms. Please try again.");
         setSymptomLoading(false);
       }
-    } catch (err) {
+    } catch {
       toast.error("Connection error. Ensure backend server is running.");
       setSymptomLoading(false);
     } finally {

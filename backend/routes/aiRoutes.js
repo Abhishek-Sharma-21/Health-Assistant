@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { protect } from "../middleware/auth.js";
 import { handleChat } from "../services/aiService.js";
+import { validateContextRequest } from "../services/healthContextContract.js";
 import { analyzeQuery } from "../data/validationData.js";
 import {
   validateAIInput,
@@ -16,10 +17,26 @@ import {
 
 const router = Router();
 
+const VALID_TASKS = new Set([
+  "CHAT",
+  "SYMPTOM_ANALYSIS",
+  "HEALTH_SUMMARY",
+  "TREND_SUMMARY",
+  "RECORD_SUMMARY",
+  "MEDICATION_INFORMATION",
+]);
+
 router.post("/chat", protect, async (req, res) => {
   const startTime = Date.now();
-  const { message, conversationId, task } = req.body;
-  const aiTask = task || "CHAT";
+  const { message, conversationId, task, useHealthContext, contextRequest } = req.body;
+  const aiTask = VALID_TASKS.has(task) ? task : "CHAT";
+  const contextToggle = typeof useHealthContext === "boolean" ? useHealthContext : undefined;
+
+  // ── Step 0: Validate optional contextRequest (backend is source of truth) ──
+  const contextValidation = validateContextRequest(contextRequest);
+  if (!contextValidation.ok) {
+    return res.status(400).json({ error: contextValidation.error });
+  }
 
   // ── Step 1: Input Validation ──
   const inputCheck = validateAIInput(message, conversationId);
@@ -91,7 +108,10 @@ router.post("/chat", protect, async (req, res) => {
 
   // ── Step 6: AI Processing ──
   try {
-    const result = await handleChat(req.user.id, trimmedMessage, conversationId || null, aiTask);
+    const result = await handleChat(req.user.id, trimmedMessage, conversationId || null, aiTask, {
+      useHealthContext: contextToggle,
+      contextRequest: contextRequest ?? null,
+    });
 
     // ── Step 7: Output Validation ──
     const outputCheck = validateAIOutput(result);
@@ -133,6 +153,12 @@ router.post("/chat", protect, async (req, res) => {
       conversationId: result.conversationId,
     });
   } catch (err) {
+    if (err?.status === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+    if (err?.status === 403) {
+      return res.status(403).json({ error: err.message });
+    }
     logAIMetadata({
       userId: req.user.id,
       inputLength: trimmedMessage.length,

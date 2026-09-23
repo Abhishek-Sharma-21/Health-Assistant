@@ -33,11 +33,12 @@ export const useHealthStore = create((set) => ({
         activePage: activePage,
         userProfile: user
           ? {
-              fullName: user.name,
-              email: user.email,
-              dob: "2002-05-15",
-              gender: "Male",
-              location: "New Delhi, India",
+              fullName: user.name || "",
+              email: user.email || "",
+              dob: "",
+              gender: "",
+              location: "",
+              phone: "",
             }
           : state.userProfile,
       };
@@ -77,7 +78,7 @@ export const useHealthStore = create((set) => ({
 
   // Selected Article for Detail View
   selectedArticle: null,
-  setSelectedArticle: (article) => set({ selectedArticle: article, activePage: "article-detail" }),
+  setSelectedArticle: (article) => set({ selectedArticle: article }),
 
   // Admin Blog Editor State
   adminEditingBlog: null,
@@ -89,12 +90,12 @@ export const useHealthStore = create((set) => ({
 
   // User Profile
   userProfile: {
-    fullName: "Abhishek Sharma",
-    email: "abhishek@gmail.com",
-    dob: "2002-05-15",
-    gender: "Male",
-    location: "New Delhi, India",
-    phone: "+91 98765 43210",
+    fullName: "",
+    email: "",
+    dob: "",
+    gender: "",
+    location: "",
+    phone: "",
   },
   updateUserProfile: (updatedFields) =>
     set((state) => ({
@@ -103,6 +104,7 @@ export const useHealthStore = create((set) => ({
 
   // Health Context Toggle for AI Chat
   useHealthContext: true,
+  setUseHealthContext: (enabled) => set({ useHealthContext: Boolean(enabled) }),
   toggleHealthContext: () => set((state) => ({ useHealthContext: !state.useHealthContext })),
 
   // AI Conversation State
@@ -203,7 +205,7 @@ export const useHealthStore = create((set) => ({
       symptomWizard: { ...state.symptomWizard, loading },
     })),
   resetSymptomWizard: () =>
-    set((state) => ({
+    set(() => ({
       symptomWizard: {
         step: 1,
         selectedSymptoms: [],

@@ -1,27 +1,36 @@
+// ─── Health Context Service ────────────────────────────────────────────────
+// Low-level, user-scoped loaders for health data slices.
+// AI features must call resolveHealthContext in healthContextContract.js
+// rather than assembling context here or in routes.
+// ────────────────────────────────────────────────────────────────────────────
+
 import { prisma } from "../lib/db.js";
+import {
+  PROFILE_CONTEXT_FIELDS,
+  RECORD_CONTEXT_FIELDS,
+  MEDICATION_CONTEXT_FIELDS,
+} from "./healthDataModel.js";
 
 const RECORD_LIMIT = 10;
 
 export async function getProfile(userId) {
-  const profile = await prisma.healthProfile.findUnique({ where: { userId } });
+  const profile = await prisma.healthProfile.findUnique({
+    where: { userId },
+    select: PROFILE_CONTEXT_FIELDS,
+  });
   if (!profile) return null;
   return {
-    fullName: profile.fullName || undefined,
     gender: profile.gender || undefined,
     dateOfBirth: profile.dateOfBirth || undefined,
     bloodGroup: profile.bloodGroup || undefined,
-    heightCm: profile.heightCm || undefined,
-    weightKg: profile.weightKg || undefined,
+    height: profile.height ?? undefined,
+    weight: profile.weight ?? undefined,
     smokingStatus: profile.smokingStatus || undefined,
     alcoholStatus: profile.alcoholStatus || undefined,
     activityLevel: profile.activityLevel || undefined,
     allergies: profile.allergies || undefined,
-    chronicConditions: profile.chronicConditions || undefined,
+    medicalConditions: profile.medicalConditions || undefined,
     currentMedications: profile.currentMedications || undefined,
-    surgicalHistory: profile.surgicalHistory || undefined,
-    familyHistory: profile.familyHistory || undefined,
-    emergencyContactName: profile.emergencyContactName || undefined,
-    emergencyContactPhone: profile.emergencyContactPhone || undefined,
   };
 }
 
@@ -30,17 +39,7 @@ export async function getRecentRecords(userId) {
     where: { userId },
     orderBy: { recordDate: "desc" },
     take: RECORD_LIMIT,
-    select: {
-      id: true,
-      recordType: true,
-      title: true,
-      description: true,
-      recordDate: true,
-      hospitalName: true,
-      doctorName: true,
-      notes: true,
-      attachments: true,
-    },
+    select: RECORD_CONTEXT_FIELDS,
   });
   return records.map((r) => ({
     ...r,
@@ -50,19 +49,9 @@ export async function getRecentRecords(userId) {
 
 export async function getActiveMedications(userId) {
   const medications = await prisma.medication.findMany({
-    where: { userId, isActive: true },
+    where: { userId, status: "ACTIVE" },
     orderBy: { startDate: "desc" },
-    select: {
-      id: true,
-      name: true,
-      dosage: true,
-      frequency: true,
-      route: true,
-      purpose: true,
-      startDate: true,
-      endDate: true,
-      notes: true,
-    },
+    select: MEDICATION_CONTEXT_FIELDS,
   });
   return medications.map((m) => ({
     ...m,
@@ -77,46 +66,50 @@ export async function getMedicationActivity(userId) {
 
   const doses = await prisma.medicationDose.findMany({
     where: {
-      schedule: { medication: { userId } },
+      medication: { userId },
       scheduledAt: { gte: thirtyDaysAgo },
     },
     orderBy: { scheduledAt: "desc" },
     take: 20,
     include: {
-      schedule: {
-        include: {
-          medication: { select: { id: true, name: true, dosage: true } },
-        },
-      },
+      medication: { select: { id: true, name: true, dosage: true } },
     },
   });
 
   return doses.map((d) => ({
     id: d.id,
-    medicationName: d.schedule.medication.name,
-    medicationDosage: d.schedule.medication.dosage,
+    medicationName: d.medication.name,
+    medicationDosage: d.medication.dosage,
     scheduledAt: d.scheduledAt?.toISOString(),
     status: d.status,
   }));
 }
 
 export async function getMeasurements(userId) {
-  const profile = await prisma.healthProfile.findUnique({ where: { userId } });
+  const profile = await prisma.healthProfile.findUnique({
+    where: { userId },
+    select: { height: true, weight: true },
+  });
   if (!profile) return null;
 
   const measurements = {};
-  if (profile.heightCm) measurements.heightCm = profile.heightCm;
-  if (profile.weightKg) measurements.weightKg = profile.weightKg;
-  if (profile.heightCm && profile.weightKg) {
-    const heightM = profile.heightCm / 100;
-    measurements.bmi = +(profile.weightKg / (heightM * heightM)).toFixed(1);
+  if (profile.height) measurements.height = profile.height;
+  if (profile.weight) measurements.weight = profile.weight;
+  if (profile.height && profile.weight) {
+    const heightM = profile.height / 100;
+    if (heightM > 0) {
+      measurements.bmi = +(profile.weight / (heightM * heightM)).toFixed(1);
+    }
   }
   if (Object.keys(measurements).length === 0) return null;
   return measurements;
 }
 
 export async function getTrends(userId) {
-  const profile = await prisma.healthProfile.findUnique({ where: { userId } });
+  const profile = await prisma.healthProfile.findUnique({
+    where: { userId },
+    select: { height: true, weight: true },
+  });
   const records = await prisma.healthRecord.findMany({
     where: { userId },
     orderBy: { recordDate: "desc" },
@@ -130,54 +123,36 @@ export async function getTrends(userId) {
   });
 
   const trends = { recordTypeSummary: recordTypeCounts };
-  if (profile?.weightKg) trends.latestWeightKg = profile.weightKg;
-  if (profile?.heightCm) trends.latestHeightCm = profile.heightCm;
+  if (profile?.weight) trends.latestWeight = profile.weight;
+  if (profile?.height) trends.latestHeight = profile.height;
   return trends;
 }
 
+/**
+ * Legacy helper: build health sections only (no conversation).
+ * Prefer resolveHealthContext from healthContextContract.js for AI features.
+ * Still user-scoped only.
+ */
 export async function buildSafeContext(userId, categories) {
+  const wanted = categories instanceof Set ? categories : new Set(categories || []);
   const context = {};
   const fetches = [];
 
-  if (categories.has("PROFILE")) {
-    fetches.push(
-      getProfile(userId).then((p) => {
-        if (p) context.profile = p;
-      })
-    );
+  if (wanted.has("PROFILE")) {
+    fetches.push(getProfile(userId).then((p) => { if (p) context.profile = p; }));
   }
-  if (categories.has("RECORDS")) {
-    fetches.push(
-      getRecentRecords(userId).then((r) => {
-        if (r.length > 0) context.recentRecords = r;
-      })
-    );
+  if (wanted.has("RECORDS")) {
+    fetches.push(getRecentRecords(userId).then((r) => { if (r.length) context.recentRecords = r; }));
   }
-  if (categories.has("MEDICATIONS")) {
-    fetches.push(
-      getActiveMedications(userId).then((m) => {
-        if (m.length > 0) context.activeMedications = m;
-      })
-    );
-    fetches.push(
-      getMedicationActivity(userId).then((a) => {
-        if (a.length > 0) context.medicationActivity = a;
-      })
-    );
+  if (wanted.has("MEDICATIONS")) {
+    fetches.push(getActiveMedications(userId).then((m) => { if (m.length) context.activeMedications = m; }));
+    fetches.push(getMedicationActivity(userId).then((a) => { if (a.length) context.medicationActivity = a; }));
   }
-  if (categories.has("MEASUREMENTS")) {
-    fetches.push(
-      getMeasurements(userId).then((m) => {
-        if (m) context.measurements = m;
-      })
-    );
+  if (wanted.has("MEASUREMENTS")) {
+    fetches.push(getMeasurements(userId).then((m) => { if (m) context.measurements = m; }));
   }
-  if (categories.has("TRENDS")) {
-    fetches.push(
-      getTrends(userId).then((t) => {
-        if (t) context.trends = t;
-      })
-    );
+  if (wanted.has("TRENDS")) {
+    fetches.push(getTrends(userId).then((t) => { if (t) context.trends = t; }));
   }
 
   await Promise.all(fetches);

@@ -1,6 +1,14 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/db.js";
 
+export function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is required.");
+  }
+  return secret;
+}
+
 // Authentication Middleware: Verifies JWT token and attaches user to req.user
 export const protect = async (req, res, next) => {
   try {
@@ -15,7 +23,7 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ error: "Not authorized, token missing." });
     }
 
-    const secret = process.env.JWT_SECRET || "fallback_secret_key";
+    const secret = getJwtSecret();
     const decoded = jwt.verify(token, secret);
 
     // Retrieve fresh user from PostgreSQL to verify active status & true role

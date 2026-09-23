@@ -28,7 +28,6 @@ import { AdminLayout } from "./admin/AdminLayout";
 import { AdminOverviewPage } from "./admin/pages/AdminOverviewPage";
 import { AdminUsersPage } from "./admin/pages/AdminUsersPage";
 import { AdminConversationsPage } from "./admin/pages/AdminConversationsPage";
-import { AdminContentPage } from "./admin/pages/AdminContentPage";
 import { AdminAnnouncementsPage } from "./admin/pages/AdminAnnouncementsPage";
 import { AdminReportsPage } from "./admin/pages/AdminReportsPage";
 import { AdminSettingsPage } from "./admin/pages/AdminSettingsPage";
@@ -39,7 +38,7 @@ import { AdminBlogEditorPage } from "./admin/pages/AdminBlogEditorPage";
 import { AdminAiCredentialsPage } from "./admin/pages/AdminAiCredentialsPage";
 
 function App() {
-  const { activePage, darkMode, authUser, setAuthUser, setActivePage } = useHealthStore();
+  const { activePage, darkMode, setAuthUser } = useHealthStore();
 
   const apiUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -54,12 +53,12 @@ function App() {
             setAuthUser(data.user);
           }
         }
-      } catch (err) {
+      } catch {
         console.log("No active session found.");
       }
     };
     checkSession();
-  }, []);
+  }, [apiUrl, setAuthUser]);
 
   useEffect(() => {
     if (darkMode) {

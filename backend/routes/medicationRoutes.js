@@ -331,17 +331,28 @@ router.post("/doses/generate", protect, async (req, res) => {
     const dosesToCreate = [];
     for (const schedule of med.schedules) {
       const [hours, minutes] = schedule.time.split(":").map(Number);
-      const current = new Date(from);
-      while (current <= to) {
-        const doseTime = new Date(current);
-        doseTime.setHours(hours, minutes, 0, 0);
+      const dayFilter = (schedule.daysOfWeek || "daily").toLowerCase();
+      const dayTokens = dayFilter === "daily"
+        ? null
+        : dayFilter.split(",").map((d) => d.trim()).filter(Boolean);
+      const weekdayNames = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
-        if (doseTime >= new Date()) {
-          dosesToCreate.push({
-            medicationId: med.id,
-            scheduledAt: doseTime,
-            status: "PENDING",
-          });
+      const current = new Date(from);
+      current.setHours(0, 0, 0, 0);
+      while (current <= to) {
+        const weekday = weekdayNames[current.getDay()];
+        const dayMatches = !dayTokens || dayTokens.some((token) => token === weekday || token === String(current.getDay()));
+
+        if (dayMatches) {
+          const doseTime = new Date(current);
+          doseTime.setHours(hours, minutes, 0, 0);
+          if (doseTime >= new Date()) {
+            dosesToCreate.push({
+              medicationId: med.id,
+              scheduledAt: doseTime,
+              status: "PENDING",
+            });
+          }
         }
         current.setDate(current.getDate() + 1);
       }

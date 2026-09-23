@@ -2,13 +2,13 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/db.js";
-import { protect } from "../middleware/auth.js";
+import { protect, getJwtSecret } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // Helper to generate JWT Token & set HttpOnly cookie
 const sendTokenResponse = (user, statusCode, res) => {
-  const secret = process.env.JWT_SECRET || "fallback_secret_key";
+  const secret = getJwtSecret();
   const token = jwt.sign({ id: user.id, role: user.role }, secret, {
     expiresIn: "7d",
   });

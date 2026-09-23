@@ -17,7 +17,6 @@ import {
   Pill,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useHealthStore } from "../store/useHealthStore";
 
 const GENDER_OPTIONS = [
   { value: "", label: "Select gender" },
@@ -103,7 +102,6 @@ function formatDateForInput(dateStr) {
 }
 
 export function ProfilePage() {
-  const { authUser } = useHealthStore();
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -179,7 +177,7 @@ export function ProfilePage() {
         const data = await res.json();
         toast.error(data.error || "Failed to save profile.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to save profile.");
     } finally {
       setSaving(false);
@@ -418,7 +416,8 @@ export function ProfilePage() {
   );
 }
 
-function Section({ title, icon: Icon, children }) {
+function Section({ title, icon, children }) {
+  const Icon = icon;
   return (
     <div className="glass-card rounded-2xl p-5 border border-border/70 space-y-4">
       <div className="flex items-center gap-2 pb-2 border-b border-border/50">

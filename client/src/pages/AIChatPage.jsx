@@ -26,21 +26,20 @@ import { useHealthStore } from "../store/useHealthStore";
 export function AIChatPage() {
   const {
     chatMessages, setChatMessages, addChatMessage, clearChatMessages,
-    useHealthContext, toggleHealthContext, authUser,
+    useHealthContext, setUseHealthContext, authUser,
     conversations, setConversations, activeConversationId, setActiveConversationId,
-    addConversation, removeConversation, setConversationLoading, conversationLoading,
+    removeConversation, setConversationLoading, conversationLoading,
   } = useHealthStore();
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
-  const [contextInfo, setContextInfo] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const messagesEndRef = useRef(null);
 
   const apiUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-  // Load conversations on mount
+  // Load conversations + context preference on mount
   useEffect(() => {
     if (!authUser) return;
     const fetchConversations = async () => {
@@ -50,12 +49,41 @@ export function AIChatPage() {
           const data = await res.json();
           setConversations(data.conversations || []);
         }
-      } catch (err) {
+      } catch {
         console.error("Failed to load conversations");
       }
     };
+    const fetchPreference = async () => {
+      try {
+        const res = await fetch(`${apiUrl}/api/ai/conversations/preferences/me`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.preference && typeof data.preference.memoryEnabled === "boolean") {
+            setUseHealthContext(data.preference.memoryEnabled);
+          }
+        }
+      } catch {
+        // Preference load is best-effort; request still works with local toggle
+      }
+    };
     fetchConversations();
+    fetchPreference();
   }, [authUser]);
+
+  const handleToggleContext = async () => {
+    const next = !useHealthContext;
+    setUseHealthContext(next);
+    try {
+      await fetch(`${apiUrl}/api/ai/conversations/preferences/me`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ memoryEnabled: next }),
+      });
+    } catch {
+      // Server still receives useHealthContext on each chat request
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -78,7 +106,7 @@ export function AIChatPage() {
         setChatMessages(msgs);
         setActiveConversationId(conversationId);
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to load conversation");
     } finally {
       setConversationLoading(false);
@@ -108,7 +136,7 @@ export function AIChatPage() {
         }
         toast.success("Conversation deleted");
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete conversation");
     }
   };
@@ -125,7 +153,6 @@ export function AIChatPage() {
 
     if (!textToSend) setInput("");
     setLoading(true);
-    setContextInfo(null);
 
     try {
       const res = await fetch(`${apiUrl}/api/ai/chat`, {
@@ -135,14 +162,13 @@ export function AIChatPage() {
         body: JSON.stringify({
           message: query,
           conversationId: activeConversationId || undefined,
+          useHealthContext: useHealthContext,
         }),
       });
 
       const data = await res.json();
 
       if (res.ok && data.text) {
-        setContextInfo({ categories: data.categoriesUsed, provider: data.provider });
-
         addChatMessage({
           sender: "ai",
           text: data.text,
@@ -160,7 +186,9 @@ export function AIChatPage() {
               const listData = await listRes.json();
               setConversations(listData.conversations || []);
             }
-          } catch (_) {}
+          } catch {
+            // Refresh conversation list is best-effort
+          }
         }
       } else {
         addChatMessage({
@@ -169,7 +197,7 @@ export function AIChatPage() {
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         });
       }
-    } catch (err) {
+    } catch {
       addChatMessage({
         sender: "ai",
         text: "I encountered a connection error. Please make sure the backend server is running and try again.",
@@ -291,7 +319,7 @@ export function AIChatPage() {
           {authUser && (
             <div className="flex items-center gap-2">
               <button
-                onClick={toggleHealthContext}
+                onClick={handleToggleContext}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
                   useHealthContext
                     ? "bg-cyan-50 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800"

@@ -21,6 +21,14 @@ import aiRoutes from "./routes/aiRoutes.js";
 import conversationRoutes from "./routes/conversationRoutes.js";
 import adminAiCredentialRoutes from "./routes/adminAiCredentialRoutes.js";
 import { routeTask } from "./ai/taskRouter.js";
+import { protect } from "./middleware/auth.js";
+import {
+  resolveHealthContext,
+  validateContextRequest,
+  toAIContextPayload,
+  toConversationContext,
+} from "./services/healthContextContract.js";
+import { prisma } from "./lib/db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +54,16 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(cookieParser());
 
+// Lightweight health check (used by admin help diagnostics)
+app.get("/api/health", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", database: "connected" });
+  } catch (_) {
+    res.status(503).json({ status: "degraded", database: "disconnected" });
+  }
+});
+
 // Mount API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
@@ -59,9 +77,15 @@ app.use("/api/ai/conversations", conversationRoutes);
 app.use("/api/admin/ai-credentials", adminAiCredentialRoutes);
 
 // ─── Symptom Checker (uses provider-agnostic AI) ──────────────────────────
-app.post("/diagnose", async (req, res) => {
+app.post("/diagnose", protect, async (req, res) => {
   const startTime = Date.now();
-  const { symptoms, medicalHistory } = req.body;
+  const { symptoms, medicalHistory, useHealthContext, contextRequest } = req.body;
+
+  // ── Step 0: Validate optional contextRequest ──
+  const contextValidation = validateContextRequest(contextRequest);
+  if (!contextValidation.ok) {
+    return res.status(400).json({ error: contextValidation.error });
+  }
 
   // ── Step 1: Input Validation ──
   const inputCheck = validateAIInput(symptoms);
@@ -140,13 +164,24 @@ app.post("/diagnose", async (req, res) => {
 
   // ── Step 6: AI Processing via Task Router ──
   try {
-    const prompt = buildDiagnoseSystemPrompt(trimmedSymptoms, medicalHistory);
+    const systemPrompt = buildDiagnoseSystemPrompt(trimmedSymptoms, medicalHistory);
+
+    // Single health-context contract (user-scoped; respects toggle + optional contextRequest)
+    const { healthContext, memoryEnabled, preference } = await resolveHealthContext({
+      userId: req.user.id,
+      message: combinedInput,
+      useHealthContext,
+      contextRequest: contextRequest ?? null,
+      conversationId: null,
+      attachConversation: false,
+    });
 
     const result = await routeTask("SYMPTOM_ANALYSIS", {
       message: `Symptoms: ${trimmedSymptoms}${medicalHistory ? `\nMedical History: ${medicalHistory}` : ""}`,
-      context: {},
-      conversationContext: [],
-      preference: null,
+      context: toAIContextPayload(healthContext),
+      conversationContext: toConversationContext(healthContext),
+      preference: memoryEnabled ? preference : null,
+      systemPrompt,
     });
 
     let text = result.text;
@@ -156,6 +191,20 @@ app.post("/diagnose", async (req, res) => {
 
     try {
       const parsedResult = JSON.parse(text);
+
+      // Enforce non-diagnostic safety constraints server-side
+      if (Array.isArray(parsedResult.diagnoses)) {
+        parsedResult.diagnoses = parsedResult.diagnoses.map((d) => ({
+          name: String(d?.name || "").slice(0, 200),
+          confidence: Math.min(Math.max(Number(d?.confidence) || 0, 0), 0.7),
+        }));
+      } else {
+        parsedResult.diagnoses = [];
+      }
+      parsedResult.shouldSeekProfessionalCare = true;
+      if (parsedResult.medicineRecommendations) {
+        parsedResult.medicineRecommendations.recommendations = [];
+      }
 
       // ── Step 7: Output Validation ──
       const outputCheck = validateAIOutput({ text: JSON.stringify(parsedResult), provider: result.provider });
@@ -193,6 +242,9 @@ app.post("/diagnose", async (req, res) => {
       res.status(500).json({ error: "Failed to parse AI response." });
     }
   } catch (err) {
+    if (err?.status === 400) {
+      return res.status(400).json({ error: err.message });
+    }
     logAIMetadata({
       inputLength: trimmedSymptoms.length,
       provider: err?.code || "UNKNOWN",

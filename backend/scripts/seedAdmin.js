@@ -14,7 +14,11 @@ const prisma = new PrismaClient();
 async function seedSuperAdmin() {
   const name = process.env.SUPER_ADMIN_NAME || "Super Admin";
   const email = (process.env.SUPER_ADMIN_EMAIL || "admin@healthwise.com").toLowerCase().trim();
-  const rawPassword = process.env.SUPER_ADMIN_PASSWORD || "AdminSecurePassword123!";
+  const rawPassword = process.env.SUPER_ADMIN_PASSWORD;
+  if (!rawPassword) {
+    console.error("[SEED ERROR] SUPER_ADMIN_PASSWORD environment variable is required.");
+    process.exit(1);
+  }
 
   console.log(`Checking Super Admin account for email: ${email}...`);
 

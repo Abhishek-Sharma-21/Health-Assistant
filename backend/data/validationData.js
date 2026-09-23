@@ -53,7 +53,11 @@ export const medicalKeywords = [
   "side effect", "allergic reaction", "overdose", "withdrawal",
   "symptom", "condition", "disease", "illness", "sick", "unwell", "syndrome",
   "diagnosis", "prognosis", "treatment", "therapy", "recovery", "rehab",
-  "prevention", "vaccine", "immunization", "screening", "test", "lab", "blood test", "mri", "x-ray", "ct scan", "ultrasound"
+  "prevention", "vaccine", "immunization", "screening", "test", "lab", "blood test", "mri", "x-ray", "ct scan", "ultrasound",
+
+  // Health profile / measurements (used by app UI suggestions & health context)
+  "blood group", "blood type", "bmi", "height", "weight",
+  "medical history", "health profile", "body mass index",
 ];
 
 export const nonMedicalPatterns = [
@@ -69,7 +73,7 @@ export const nonMedicalPatterns = [
   /nft/i, /trading/i, /loan/i, /mortgage/i,
   
   // Adult & Inappropriate
-  /porn/i, /adult content/i, /nsfw/i, /sex/i, /prostitute/i,
+  /porn/i, /adult content/i, /nsfw/i, /prostitute/i,
   
   // Scam & Security
   /spam/i, /scam/i, /phishing/i, /malware/i, /virus computer/i, /trojan/i,
